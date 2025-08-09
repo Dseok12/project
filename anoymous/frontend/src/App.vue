@@ -1,13 +1,18 @@
 <template>
   <div class="All-Wrapper">
-    <div class="All-Wrapper__inner">
-      <h1>Welcome to the Anonymous Project</h1>
-      <p>This is a placeholder for your application content.</p>
-      <a href="javascript:;">링크</a>
-    </div>
+    <!-- 모든 페이지에서 공통으로 표시되는 Header -->
+    <Header />
+
+    <!-- 라우터 페이지 출력 -->
+    <router-view />
   </div>
 </template>
-<script setup>
 
+<script setup>
+import Header from './components/Header.vue'
 </script>
 
+<style lang="scss" scoped>
+@use './css/base/_Reset.scss';
+@use './css/base/_Common.scss';
+</style>
