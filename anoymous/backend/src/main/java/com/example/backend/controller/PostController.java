@@ -1,21 +1,26 @@
 package com.example.backend.controller;
 
+import com.example.backend.domain.Comment;
 import com.example.backend.domain.Post;
-import com.example.backend.service.PostService;
+import com.example.backend.repository.CommentRepository;
+import com.example.backend.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.File;
 import java.io.IOException;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class PostController {
-    private final PostService postService;
+    private final PostRepository postRepository;
+    private final CommentRepository commentRepository;
 
     @PostMapping("/posts")
     public ResponseEntity<?> createPost(
@@ -37,42 +42,33 @@ public class PostController {
             image.transferTo(dest);
             post.setImageUrl("/uploads/" + fileName);
         }
-
-        postService.save(post);
-        return ResponseEntity.ok("게시물 작성 완료");
+        postRepository.save(post);
+        return ResponseEntity.ok("게시글 등록 완료");
     }
 
     @GetMapping("/posts")
-    public Page<Post> getPosts(@RequestParam(defaultValue = "0") int page) {
-        Pageable pageable = PageRequest.of(page, 15, Sort.by(Sort.Direction.DESC, "id"));
-        return postService.findAll(pageable);
+    public Page<Post> list(@RequestParam(defaultValue="0") int page) {
+        Pageable pageable = PageRequest.of(page, 10, Sort.by(Sort.Direction.DESC,"id"));
+        return postRepository.findAll(pageable);
     }
 
     @GetMapping("/posts/{id}")
-    public ResponseEntity<?> getPost(@PathVariable Long id) {
-        return postService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<?> detail(@PathVariable Long id) {
+        Optional<Post> post = postRepository.findById(id);
+        return post.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PutMapping("/posts/{id}")
-    public ResponseEntity<?> updatePost(
+    public ResponseEntity<?> update(
             @PathVariable Long id,
             @RequestParam String title,
             @RequestParam String content,
-            @RequestParam String author,
             @RequestParam(required = false) MultipartFile image
     ) throws IOException {
-        Optional<Post> optionalPost = postService.findById(id);
-        if (optionalPost.isEmpty()) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시물을 찾을 수 없습니다.");
-
-        Post post = optionalPost.get();
-        if (!post.getAuthor().equals(author))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("작성자만 수정할 수 있습니다.");
-
+        Post post = postRepository.findById(id).orElseThrow();
         post.setTitle(title);
         post.setContent(content);
-
         if (image != null && !image.isEmpty()) {
             String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
             String savePath = "uploads/" + fileName;
@@ -81,24 +77,35 @@ public class PostController {
             image.transferTo(dest);
             post.setImageUrl("/uploads/" + fileName);
         }
-
-        postService.save(post);
+        postRepository.save(post);
         return ResponseEntity.ok("수정 완료");
     }
 
     @DeleteMapping("/posts/{id}")
-    public ResponseEntity<?> deletePost(
-            @PathVariable Long id,
-            @RequestParam String author
-    ) {
-        Optional<Post> optionalPost = postService.findById(id);
-        if (optionalPost.isEmpty()) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("게시물을 찾을 수 없습니다.");
-
-        Post post = optionalPost.get();
-        if (!post.getAuthor().equals(author))
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("작성자만 삭제할 수 있습니다.");
-
-        postService.delete(post);
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        postRepository.deleteById(id);
         return ResponseEntity.ok("삭제 완료");
+    }
+
+    // 댓글 추가
+    @PostMapping("/posts/{id}/comments")
+    public ResponseEntity<?> addComment(
+            @PathVariable Long id,
+            @RequestParam String commentWriter,
+            @RequestParam String commentContents
+    ) {
+        Post post = postRepository.findById(id).orElseThrow();
+        Comment c = new Comment();
+        c.setPost(post);
+        c.setCommentWriter(commentWriter);
+        c.setCommentContents(commentContents);
+        commentRepository.save(c);
+        return ResponseEntity.ok("댓글 등록 완료");
+    }
+
+    @GetMapping("/posts/{id}/comments")
+    public List<Comment> getComments(@PathVariable Long id) {
+        Post post = postRepository.findById(id).orElseThrow();
+        return commentRepository.findByPost(post);
     }
 }

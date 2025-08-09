@@ -11,17 +11,11 @@ import java.util.Optional;
 public class UserService {
     private final UserRepository userRepository;
 
-    public User register(User user) {
-        return userRepository.save(user);
-    }
-
-    public Optional<User> findByEmail(String email) {
+    public Optional<User> findByEmail(String email){
         return userRepository.findByEmail(email);
     }
 
-    public boolean validateLogin(String email, String password) {
-        return userRepository.findByEmail(email)
-                .map(u -> u.getPassword().equals(password))
-                .orElse(false);
+    public void register(User user){
+        userRepository.save(user);
     }
 }
