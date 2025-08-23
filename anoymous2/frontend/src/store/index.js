@@ -1,16 +1,32 @@
 import { createStore } from 'vuex';
 
-export default createStore({
-  state: {
-    // 예: 로그인 상태, 사용자 정보 등
+const store = createStore({
+  state() {
+    return {
+      user: null,  // 로그인 사용자 정보 저장 (없으면 null)
+    };
   },
   mutations: {
-    // 상태 변경 함수
+    setUser(state, userData) {
+      state.user = userData;
+    },
+    clearUser(state) {
+      state.user = null;
+    }
   },
   actions: {
-    // 비동기 작업
+    login({ commit }, userData) {
+      commit('setUser', userData);
+    },
+    logout({ commit }) {
+      commit('clearUser');
+    }
   },
   getters: {
-    // 계산된 상태 반환
+    isLoggedIn(state) {
+      return !!state.user;
+    }
   }
 });
+
+export default store;

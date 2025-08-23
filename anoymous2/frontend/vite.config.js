@@ -24,7 +24,7 @@ export default defineConfig({
 
       // Vue 폴더
       '@components': fileURLToPath(new URL('./src/components', import.meta.url)),
-      '@pages': fileURLToPath(new URL('./src/pages', import.meta.url)),
+      '@views': fileURLToPath(new URL('./src/views', import.meta.url)),
       '@layouts': fileURLToPath(new URL('./src/layouts', import.meta.url)),
       '@router': fileURLToPath(new URL('./src/router', import.meta.url))
     },

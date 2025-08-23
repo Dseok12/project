@@ -1,8 +1,9 @@
+// src/api.js
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8081',
-  withCredentials: true // 인증 쿠키를 사용할 경우
+  baseURL: 'http://localhost:8080',
+  withCredentials: true,  // 쿠키 인증시 필요
 });
 
 export default apiClient;
