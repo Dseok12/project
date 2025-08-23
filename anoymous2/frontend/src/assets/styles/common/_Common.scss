@@ -1,0 +1,6 @@
+body{position: relative;background: #fff;}
+.All-Wrapper {width: 100%;margin: 0 auto;}
+[class*="__inner"] {width: calc(100% - 10%);margin: 0 auto;}
+[class*="__flex"]{display: flex;}
+[class*="-flex"]{display: flex;}
+[class*="po_r"]{position: relative;}
