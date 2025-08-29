@@ -1,61 +1,67 @@
+// src/store/index.js
 import { createStore } from 'vuex'
 
-const getFromStorage = (key) =>
-  sessionStorage.getItem(key) ?? localStorage.getItem(key)
-
 export default createStore({
-  state: () => ({
-    token: getFromStorage('token') || null,
-    activityId: getFromStorage('activityId') || null
-  }),
+  state: {
+    token: null,
+    activityId: null,
+  },
   getters: {
-    isAuthed: (state) => !!state.token
+    isAuthed: (state) => !!state.token,
   },
   mutations: {
     SET_AUTH(state, { token, activityId }) {
       state.token = token
-      state.activityId = activityId
+      state.activityId = activityId ?? null
     },
     CLEAR_AUTH(state) {
       state.token = null
       state.activityId = null
-    }
+    },
   },
   actions: {
-    /**
-     * 로그인 성공 시 호출
-     * persist: 'local' | 'session' (기본: 'local')
-     */
-    login({ commit }, { token, activityId, persist = 'local' }) {
+    // ⬇️ 에러의 원인인 이 액션을 추가
+    initFromStorage({ commit }) {
+      const token =
+        sessionStorage.getItem('token') || localStorage.getItem('token')
+      const activityId =
+        sessionStorage.getItem('activityId') || localStorage.getItem('activityId')
+
+      if (token) {
+        commit('SET_AUTH', { token, activityId })
+      }
+    },
+
+    // 이미 사용 중인 'login', 'logout'과 맞춰 작성
+    async login({ commit }, { token, activityId, persist = 'local' }) {
       if (persist === 'session') {
-        // 세션 유지(탭/브라우저 종료 시 소멸)
         sessionStorage.setItem('token', token)
         sessionStorage.setItem('activityId', activityId)
-        // 다른 저장소는 정리
         localStorage.removeItem('token')
         localStorage.removeItem('activityId')
       } else {
-        // 로컬에 영속 저장
         localStorage.setItem('token', token)
         localStorage.setItem('activityId', activityId)
-        // 다른 저장소는 정리
         sessionStorage.removeItem('token')
         sessionStorage.removeItem('activityId')
       }
       commit('SET_AUTH', { token, activityId })
     },
 
-    /** 로그아웃: 두 스토리지 모두 정리 */
-    logout({ commit }) {
-      try {
-        localStorage.removeItem('token')
-        localStorage.removeItem('activityId')
-        sessionStorage.removeItem('token')
-        sessionStorage.removeItem('activityId')
-      } finally {
-        commit('CLEAR_AUTH')
-      }
-    }
+    async logout({ commit }) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('activityId')
+      sessionStorage.removeItem('token')
+      sessionStorage.removeItem('activityId')
+      commit('CLEAR_AUTH')
+    },
+
+    // 선택: activityId만 갱신하고 싶을 때
+    setActivityId({ commit, state }, activityId) {
+      // 저장 위치는 상황에 맞게 (여기선 둘 다)
+      localStorage.setItem('activityId', activityId)
+      sessionStorage.setItem('activityId', activityId)
+      commit('SET_AUTH', { token: state.token, activityId })
+    },
   },
-  modules: {}
 })
