@@ -8,6 +8,7 @@ const router = useRouter()
 const route = useRoute()
 
 const isAuthed = computed(() => store.getters.isAuthed)
+const isAdmin  = computed(() => store.getters.isAdmin)     // ✅ 추가
 const activityId = computed(() => store.state.activityId)
 
 // 모바일 메뉴 열림/닫힘
@@ -36,6 +37,8 @@ const logout = async () => {
       <div class="links">
         <router-link to="/notices" class="link">공지사항</router-link>
         <router-link to="/posts" class="link">게시물</router-link>
+        <!-- ✅ 관리자 전용 링크(데스크톱) -->
+        <router-link v-if="isAdmin" to="/admin" class="link admin-link">관리자</router-link>
       </div>
 
       <!-- 우측 액션 (데스크톱) -->
@@ -70,6 +73,8 @@ const logout = async () => {
       <div class="mobile-links">
         <router-link to="/notices" class="m-link">공지사항</router-link>
         <router-link to="/posts" class="m-link">게시물</router-link>
+        <!-- ✅ 관리자 전용 링크(모바일) -->
+        <router-link v-if="isAdmin" to="/admin" class="m-link admin-link">관리자</router-link>
       </div>
       <div class="mobile-actions">
         <template v-if="!isAuthed">
@@ -88,6 +93,7 @@ const logout = async () => {
 </template>
 
 <style scoped>
+.admin-link{ font-weight:800; color:#ef4444; }
 /* 컨테이너 */
 .nav-wrap {
   position: sticky;
@@ -121,127 +127,81 @@ const logout = async () => {
   font-weight: 900;
   letter-spacing: -0.02em;
   font-size: 18px;
-  color: #0f172a; /* slate-900 */
+  color: #0f172a;
 }
 .badge {
   font-size: 10px;
-  color: #1d4ed8;        /* blue-700 */
-  background: #dbeafe;   /* blue-100 */
+  color: #1d4ed8;
+  background: #dbeafe;
   border: 1px solid #bfdbfe;
   padding: 1px 6px;
   border-radius: 999px;
 }
 
 /* 링크 */
-.links {
-  display: flex; gap: 12px; align-items: center;
-}
+.links { display: flex; gap: 12px; align-items: center; }
 .link {
   position: relative;
   padding: 6px 8px;
-  color: #374151;    /* gray-700 */
+  color: #374151;
   text-decoration: none;
   font-weight: 600;
   border-radius: 8px;
   transition: color .18s ease, background .18s ease;
 }
 .link:hover { color: #111827; background: #f3f4f6; }
-.link.router-link-active {
-  color: #1d4ed8;    /* blue-700 */
-}
+.link.router-link-active { color: #1d4ed8; }
 .link.router-link-active::after {
-  content: "";
-  position: absolute;
-  left: 8px; right: 8px; bottom: -6px;
-  height: 2px; border-radius: 2px;
-  background: #60a5fa; /* blue-400 */
+  content: ""; position: absolute; left: 8px; right: 8px; bottom: -6px;
+  height: 2px; border-radius: 2px; background: #60a5fa;
 }
 
 /* 우측 버튼 */
-.actions {
-  display: none; /* 모바일 기본 숨김 */
-  gap: 8px; align-items: center; justify-content: flex-end;
-}
+.actions { display: none; gap: 8px; align-items: center; justify-content: flex-end; }
 
 /* 버튼 공통 */
 .btn {
-  appearance: none;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
+  appearance: none; border: 1px solid transparent; border-radius: 10px;
+  padding: 8px 12px; font-size: 13px; line-height: 1; cursor: pointer;
   transition: transform .03s, background .2s, color .2s, border-color .2s, box-shadow .2s;
   user-select: none;
 }
 .btn:active { transform: translateY(1px); }
-.btn-primary {
-  background: #2563eb; color: #fff; border-color: #2563eb;
-  box-shadow: 0 8px 18px rgba(37,99,235,0.25);
-}
+.btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; box-shadow: 0 8px 18px rgba(37,99,235,0.25); }
 .btn-primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
-.btn-soft {
-  background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0;
-}
+.btn-soft { background: #f1f5f9; color: #0f172a; border: 1px solid #e2e8f0; }
 .btn-soft:hover { background: #e2e8f0; }
-.btn-ghost {
-  background: transparent; color: #374151; border: 1px solid #e5e7eb;
-}
+.btn-ghost { background: transparent; color: #374151; border: 1px solid #e5e7eb; }
 .btn-ghost:hover { background: #f9fafb; border-color: #d1d5db; }
-.btn-danger {
-  background: #ef4444; color: #fff; border-color: #ef4444;
-}
+.btn-danger { background: #ef4444; color: #fff; border-color: #ef4444; }
 .btn-danger:hover { background: #dc2626; border-color: #dc2626; }
 
 /* 햄버거 */
 .hamburger {
-  display: inline-flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  width: 42px; height: 36px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  cursor: pointer;
-  transition: background .2s, border-color .2s;
+  display: inline-flex; flex-direction: column; justify-content: center; gap: 4px;
+  width: 42px; height: 36px; border-radius: 10px; border: 1px solid #e5e7eb;
+  background: #fff; cursor: pointer; transition: background .2s, border-color .2s;
 }
 .hamburger:hover { background: #f9fafb; border-color: #d1d5db; }
-.bar {
-  height: 2px; width: 20px; background: #374151; border-radius: 2px;
-  margin: 0 auto;
-}
+.bar { height: 2px; width: 20px; background: #374151; border-radius: 2px; margin: 0 auto; }
 
 /* 모바일 드롭다운 */
 .mobile {
-  display: grid;
-  gap: 8px;
-  padding: 8px 16px 12px;
+  display: grid; gap: 8px; padding: 8px 16px 12px;
   border-top: 1px solid var(--nav-border, rgba(234,234,234,0.9));
   background: var(--nav-bg, rgba(255,255,255,0.9));
 }
 .mobile-links { display: grid; gap: 6px; }
 .m-link {
-  padding: 10px 8px;
-  border-radius: 10px;
-  text-decoration: none;
-  color: #374151;
-  font-weight: 600;
+  padding: 10px 8px; border-radius: 10px; text-decoration: none; color: #374151; font-weight: 600;
 }
 .m-link.router-link-active { color: #1d4ed8; background: #eff6ff; }
 
 .mobile-actions {
-  display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0,1fr));
-  margin-top: 4px;
+  display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0,1fr)); margin-top: 4px;
 }
 .m-btn {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid transparent;
-  font-size: 13px;
-  cursor: pointer;
-  text-align: center;
+  padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; font-size: 13px; cursor: pointer; text-align: center;
 }
 .m-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
 .m-soft { background: #f1f5f9; color: #0f172a; border-color: #e2e8f0; }
@@ -260,17 +220,12 @@ const logout = async () => {
 
 /* 다크 모드 */
 @media (prefers-color-scheme: dark) {
-  .nav-wrap {
-    --nav-bg: rgba(11,18,32,0.82);
-    --nav-border: rgba(31,41,55,0.9);
-    color: #e5e7eb;
-  }
+  .nav-wrap { --nav-bg: rgba(11,18,32,0.82); --nav-border: rgba(31,41,55,0.9); color: #e5e7eb; }
   .logo { color: #e5e7eb; }
   .badge { color: #93c5fd; background: #0b1220; border-color: #1f2937; }
   .link { color: #e5e7eb; }
   .link:hover { background: #0f172a; }
   .bar { background: #e5e7eb; }
-
   .btn-ghost { color: #e5e7eb; border-color: #334155; }
   .btn-ghost:hover { background: #0f172a; border-color: #475569; }
   .btn-soft { background: #0b1220; color: #e5e7eb; border-color: #334155; }

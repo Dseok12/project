@@ -4,6 +4,7 @@ import com.example.backend.domain.Post;
 import com.example.backend.domain.User;
 import com.example.backend.dto.PostDtos.CreateReq;
 import com.example.backend.dto.PostDtos.PostRes;
+import com.example.backend.repo.CommentRepository;
 import com.example.backend.repo.PostRepository;
 import com.example.backend.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -23,10 +26,12 @@ public class PostService {
 
     private final PostRepository postRepo;
     private final UserRepository userRepo;
+    private final CommentRepository commentRepo;
 
     public PostRes get(Long id) {
         Post p = postRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("게시물이 없습니다."));
+        if (p.getDeletedAt() != null) throw new IllegalArgumentException("삭제된 게시물입니다.");
         return toRes(p);
     }
 
@@ -34,7 +39,8 @@ public class PostService {
         if (Boolean.TRUE.equals(mine)) {
             String email = currentEmail();
             if (email == null) throw new AccessDeniedException("로그인이 필요합니다.");
-            return postRepo.findByAuthor_EmailIgnoreCase(email, pageable).map(this::toRes);
+            return postRepo.findByAuthor_EmailIgnoreCase(email, pageable)
+                    .map(this::toRes);
         }
         return postRepo.findAll(pageable).map(this::toRes);
     }
@@ -51,6 +57,7 @@ public class PostService {
                 .title(req.title())
                 .content(req.content())
                 .author(author)
+                .notice(false)
                 .build();
         Post saved = postRepo.save(p);
         return saved.getId();
@@ -69,7 +76,6 @@ public class PostService {
         }
         if (title != null && !title.isBlank()) p.setTitle(title.trim());
         if (content != null) p.setContent(content);
-        // 트랜잭션 종료 시 flush
     }
 
     @Transactional
@@ -85,6 +91,28 @@ public class PostService {
         }
         postRepo.delete(p);
     }
+
+    // ===== ✅ 관리자용 기능 =====
+
+    /** 공지 on/off */
+    @Transactional
+    public PostRes setNotice(Long id, boolean notice) {
+        Post p = postRepo.findById(id).orElseThrow();
+        p.setNotice(notice);
+        return toRes(p);
+    }
+
+    /** 게시글 소프트 삭제 + 댓글 일괄 소프트 삭제 */
+    @Transactional
+    public void adminDelete(Long id) {
+        Post p = postRepo.findById(id).orElseThrow();
+        if (p.getDeletedAt() == null) {
+            p.setDeletedAt(Instant.now());
+        }
+        commentRepo.softDeleteAllByPostId(id, Instant.now());
+    }
+
+    // ===== helpers =====
 
     private PostRes toRes(Post p) {
         return new PostRes(

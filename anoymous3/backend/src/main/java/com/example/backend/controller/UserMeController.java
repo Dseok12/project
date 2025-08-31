@@ -25,14 +25,13 @@ public class UserMeController {
         return new MeRes(u.getEmail(), u.getActivityId());
     }
 
-    // 내 activityId 변경 (PUT)
+    // (기존) 내 activityId 변경 (PUT) - 호환용
     @PutMapping
     public ResponseEntity<MeRes> update(Authentication auth, @RequestBody UpdateMeReq req) {
         User u = requireMe(auth);
 
         if (req.activityId() != null && !req.activityId().isBlank()) {
-            String norm = req.activityId().trim().toLowerCase();
-            // 리포지토리에 있는 IgnoreCase 버전 사용
+            String norm = normalize(req.activityId());
             if (!norm.equalsIgnoreCase(u.getActivityId())
                     && userRepo.existsByActivityIdIgnoreCase(norm)) {
                 throw new IllegalArgumentException("이미 사용 중인 활동아이디");
@@ -44,11 +43,38 @@ public class UserMeController {
         return ResponseEntity.ok(new MeRes(u.getEmail(), u.getActivityId()));
     }
 
+    // ✅ 프론트가 호출하는 활동 아이디 변경 (PATCH /api/users/me/activity-id)
+    @PatchMapping("/activity-id")
+    public ResponseEntity<MeRes> changeActivityId(Authentication auth, @RequestBody ActivityIdReq req) {
+        User u = requireMe(auth);
+        String want = normalize(req.activityId());
+        if (want == null) throw new IllegalArgumentException("아이디를 입력하세요.");
+
+        if (!want.equalsIgnoreCase(u.getActivityId())
+                && userRepo.existsByActivityIdIgnoreCase(want)) {
+            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+        }
+
+        u.setActivityId(want);
+        userRepo.save(u);
+        return ResponseEntity.ok(new MeRes(u.getEmail(), u.getActivityId()));
+    }
+
+    // ✅ 프론트가 호출하는 내 소개 저장 (PUT /api/users/me/profile)
+    // 현재 User 엔티티에 intro 컬럼이 없다면 No-Op로 처리(성공만 반환)
+    @PutMapping("/profile")
+    public ResponseEntity<Void> saveProfile(@RequestBody ProfileReq req) {
+        // TODO: intro 필드를 User에 추가하면 여기서 저장 로직 구현
+        return ResponseEntity.noContent().build();
+    }
+
     // 프론트에서 호출하는 활동 로그 (없으면 404 나므로 빈 리스트라도 반환)
     @GetMapping("/activity-logs")
     public List<Map<String, Object>> activityLogs() {
         return List.of(); // TODO: 실제 데이터로 교체
     }
+
+    /* ===== helpers / DTOs ===== */
 
     private User requireMe(Authentication auth) {
         if (auth == null || auth.getName() == null) {
@@ -58,5 +84,13 @@ public class UserMeController {
                 .orElseThrow(() -> new IllegalStateException("User not found"));
     }
 
+    private static String normalize(String s) {
+        if (s == null) return null;
+        String t = s.trim().toLowerCase();
+        return t.isEmpty() ? null : t;
+    }
+
     public record UpdateMeReq(String activityId) {}
+    public record ActivityIdReq(String activityId) {}
+    public record ProfileReq(String intro) {}
 }

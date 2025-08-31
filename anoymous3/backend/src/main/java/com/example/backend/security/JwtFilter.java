@@ -1,3 +1,4 @@
+// backend/src/main/java/com/example/backend/security/JwtFilter.java
 package com.example.backend.security;
 
 import io.jsonwebtoken.Claims;
@@ -28,8 +29,11 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtUtil.parse(token).getBody();
                 String email = claims.getSubject();
-                Authentication auth = new UsernamePasswordAuthenticationToken(
-                        email, null, List.of(new SimpleGrantedAuthority("ROLE_USER")));
+                String role = claims.get("role", String.class);
+                if (role == null || role.isBlank()) role = "USER";
+
+                List<GrantedAuthority> auths = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                Authentication auth = new UsernamePasswordAuthenticationToken(email, null, auths);
                 SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ignored) { }
         }

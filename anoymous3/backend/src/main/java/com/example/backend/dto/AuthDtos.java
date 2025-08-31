@@ -16,7 +16,9 @@ public class AuthDtos {
     ) {}
 
     public record LoginReq(@Email @NotBlank String email, @NotBlank String password) {}
-    public record LoginRes(String token, String activityId) {}
+
+    // ✅ role 포함(ADMIN 화면 가드용)
+    public record LoginRes(String token, String activityId, String role) {}
 
     public record ActivityIdAvailableRes(boolean available) {}
 }

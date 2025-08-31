@@ -1,3 +1,4 @@
+// backend/src/main/java/com/example/backend/service/AuthService.java
 package com.example.backend.service;
 
 import com.example.backend.domain.EmailVerification;
@@ -95,7 +96,7 @@ public class AuthService {
         }
 
         if (userRepo.existsByEmail(email)) throw new IllegalArgumentException("이미 등록된 이메일");
-        // ✅ 정규화 기준으로 중복 체크
+        // 정규화 기준으로 중복 체크
         if (activityIdExistsNormalized(normActivityId))
             throw new IllegalArgumentException("이미 사용 중인 활동아이디");
 
@@ -113,7 +114,7 @@ public class AuthService {
         User u = User.builder()
                 .email(email)
                 .passwordHash(hash)
-                // ✅ 저장 시에도 정규화 적용
+                // 저장 시에도 정규화 적용
                 .activityId(normActivityId)
                 .build();
         userRepo.save(u);
@@ -121,14 +122,26 @@ public class AuthService {
 
     public LoginRes login(LoginReq req) {
         final String email = normalizeEmail(req.email());
-        User u = userRepo.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("계정 없음"));
-        if (!BCrypt.checkpw(req.password(), u.getPasswordHash())) throw new IllegalArgumentException("비밀번호 불일치");
-        String token = jwt.createToken(u.getEmail(), Map.of("activityId", u.getActivityId(), "role", "USER"));
-        return new LoginRes(token, u.getActivityId());
+        User u = userRepo.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("계정 없음"));
+
+        if (!BCrypt.checkpw(req.password(), u.getPasswordHash())) {
+            throw new IllegalArgumentException("비밀번호 불일치");
+        }
+
+        // JWT에 role/aid를 넣어 발급
+        String roleClaim = (u.getRole() != null) ? u.getRole().name() : "USER";
+        String token = jwt.createToken(
+                u.getEmail(),
+                Map.of("activityId", u.getActivityId(), "role", roleClaim)
+        );
+
+        // LoginRes가 (token, activityId, role) 시그니처일 때
+        return new LoginRes(token, u.getActivityId(), roleClaim);
     }
 
     public boolean availableActivityId(String activityId) {
-        // 🔧 오탐 방지: 정규화 후 빈값이면 false, 그 외엔 정규화 기준으로 조회
+        // 정규화 후 빈값이면 false, 그 외엔 정규화 기준으로 조회
         String norm = normalizeActivityId(activityId);
         if (norm == null) return false;
         return !activityIdExistsNormalized(norm);

@@ -9,7 +9,7 @@ const route = useRoute()
 const router = useRouter()
 
 // 탭
-const tabs = ['profile', 'password', 'posts', 'activity', 'account'] // 소개/비번/내글/활동로그/아이디
+const tabs = ['profile', 'password', 'posts', 'activity', 'account']
 const activeTab = ref('profile')
 
 // 기본 정보
@@ -43,12 +43,17 @@ const idLoading = ref(false)
 const isAuthed = computed(() => store.getters.isAuthed)
 const storeActivityId = computed(() => store.state.activityId)
 
-// 공통 헬퍼
+// 헬퍼
 const toLocal = (iso) => (iso ? new Date(iso).toLocaleString() : '')
 const apiCatch = (e, fallbackMsg = '요청에 실패했습니다.') => {
   console.error(e)
   alert(e?.response?.data?.error || fallbackMsg)
 }
+const sameAsCurrent = computed(() => {
+  const cur = (me.value.activityId || '').toLowerCase()
+  const nxt = (newActivityId.value || '').trim().toLowerCase()
+  return !!nxt && nxt === cur
+})
 
 // 내 정보 로드
 const fetchMe = async () => {
@@ -110,7 +115,6 @@ const fetchMyPosts = async () => {
   postsError.value = ''
   try {
     const { data } = await client.get('/posts', { params: { mine: true, sort: 'createdAt,desc' } })
-    // 페이지형/리스트형 모두 호환
     myPosts.value = Array.isArray(data?.content) ? data.content : (Array.isArray(data) ? data : [])
   } catch (e) {
     postsError.value = '내 글을 불러오지 못했습니다.'
@@ -143,6 +147,13 @@ const checkNewId = async () => {
     idCheckMsg.value = '아이디를 입력하세요.'
     return
   }
+  // 현재와 동일하면 굳이 중복확인하지 않음
+  if (sameAsCurrent.value) {
+    idOk.value = false
+    idCheckMsg.value = '현재 사용 중인 아이디와 동일합니다.'
+    return
+  }
+
   idLoading.value = true
   try {
     const { data } = await client.get('/auth/activity-id/available', { params: { activityId: id } })
@@ -159,21 +170,38 @@ const checkNewId = async () => {
 
 // 아이디 변경
 const changeActivityId = async () => {
-  const id = (newActivityId.value || '').trim()
-  if (!id) return alert('아이디를 입력하세요.')
-  await checkNewId()
-  if (!idOk.value) return alert('사용 가능한 아이디를 입력하세요.')
+  const raw = (newActivityId.value || '').trim()
+  if (!raw) return alert('아이디를 입력하세요.')
+
+  // 동일한 아이디면 차단
+  if (sameAsCurrent.value) {
+    return alert('현재 아이디와 동일합니다.')
+  }
+
+  // 버튼을 바로 눌렀을 때도 안전하게 서버 중복 확인
+  if (!idOk.value) {
+    await checkNewId()
+    if (!idOk.value) return alert('사용 가능한 아이디를 입력하세요.')
+  }
+
+  const id = raw.toLowerCase()
   try {
     const { data } = await client.patch('/users/me/activity-id', { activityId: id })
-    // 스토리지/스토어 갱신
-    await store.dispatch('login', {
-      token: store.state.token,
-      activityId: data?.activityId || id,
-      persist: (sessionStorage.getItem('token') ? 'session' : 'local')
-    })
+
+    // 스토어/스토리지에 activityId만 갱신 (토큰은 그대로)
+    const newId = data?.activityId || id
+    await store.dispatch('setActivityId', newId)
+
+    // 로컬 상태도 즉시 반영
+    me.value.activityId = newId
+
+    // 입력/메시지 초기화
+    newActivityId.value = ''
+    idOk.value = false
+    idCheckMsg.value = ''
+
     alert('활동 아이디가 변경되었습니다.')
-    router.replace(`/mypage/${data?.activityId || id}`)
-    await fetchMe()
+    router.replace(`/mypage/${newId}`)
   } catch (e) {
     apiCatch(e, '아이디 변경에 실패했습니다.')
   }
@@ -292,13 +320,22 @@ onMounted(async () => {
       <div v-else class="form">
         <p class="hint">현재 아이디: <b>{{ me.activityId }}</b></p>
         <div class="row">
-          <input v-model="newActivityId" class="input" placeholder="새 활동 아이디" />
-          <button class="btn btn-ghost" :disabled="idLoading" @click="checkNewId">
+          <input v-model.trim="newActivityId" class="input" placeholder="새 활동 아이디" />
+          <button class="btn btn-ghost" :disabled="idLoading || sameAsCurrent" @click="checkNewId">
             {{ idLoading ? '확인 중…' : '중복 확인' }}
           </button>
-          <button class="btn btn-primary" :disabled="!idOk" @click="changeActivityId">아이디 변경</button>
+          <button
+            class="btn btn-primary"
+            :disabled="!idOk || sameAsCurrent"
+            @click="changeActivityId"
+            title="중복 확인 후 변경할 수 있습니다"
+          >
+            아이디 변경
+          </button>
         </div>
-        <div class="id-msg" :class="{ ok: idOk }">{{ idCheckMsg }}</div>
+        <div class="id-msg" :class="{ ok: idOk && !sameAsCurrent }">
+          {{ sameAsCurrent ? '현재 아이디와 동일합니다.' : idCheckMsg }}
+        </div>
         <p class="sub">* 아이디 변경 시 URL이 <code>/mypage/새아이디</code>로 바뀝니다.</p>
       </div>
     </div>
@@ -324,9 +361,9 @@ onMounted(async () => {
 .tab {
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid #e5e7eb; /* gray-200 */
+  border: 1px solid #e5e7eb;
   background: #fff;
-  color: #374151; /* gray-700 */
+  color: #374151;
   cursor: pointer;
   font-size: 13px;
   transition: background .2s, border-color .2s, color .2s, box-shadow .2s;

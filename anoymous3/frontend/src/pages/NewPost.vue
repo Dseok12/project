@@ -70,7 +70,7 @@ const onKeydown = (e) => {
       </p>
     </header>
 
-    <div class="grid">
+    <div class="posts grid">
       <!-- 에디터 카드 -->
       <form class="card editor" @submit.prevent="createPost">
         <label class="label" for="ptitle">제목</label>
@@ -164,7 +164,9 @@ const onKeydown = (e) => {
 }
 
 /* 에디터 */
-.editor { display: grid; gap: 8px; }
+/* .editor { display: grid; gap: 8px; } */
+.posts{display: block;}
+.editor{margin-bottom: 1rem;}
 .label { font-size: 12px; color: #374151; font-weight: 800; }
 .input, .textarea {
   width: 100%;

@@ -4,11 +4,15 @@
     <main style="max-width: 960px; margin: 24px auto; padding: 0 16px;">
       <router-view />
     </main>
+    <Footer />
   </div>
 </template>
 
 <script setup>
 import NavBar from '@/components/NavBar.vue'
+import Footer from '@/components/Footer.vue'
+
+const year = new Date().getFullYear()
 </script>
 
 <style>

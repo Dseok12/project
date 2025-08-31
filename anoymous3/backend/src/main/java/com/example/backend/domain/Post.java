@@ -2,37 +2,51 @@ package com.example.backend.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.Instant;
 
 @Entity
 @Table(name = "posts")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @Builder
+@NoArgsConstructor @AllArgsConstructor
 public class Post {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable=false, length=200)
+    @Column(nullable = false, length = 255)
     private String title;
 
-    @Lob
-    @Column(nullable=false)
-    private String content;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "author_id", nullable = false,
-            foreignKey = @ForeignKey(name = "fk_posts_author"))
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id")
     private User author;
 
-    @CreationTimestamp
-    @Column(name="created_at", updatable = false, nullable = false)
+    // 아주 긴 본문 저장
+    @Lob
+    @Column(columnDefinition = "LONGTEXT", nullable = false)
+    private String content;
+
+    // ✅ 공지 여부
+    @Column(nullable = false)
+    private boolean notice = false;
+
+    // ✅ 소프트 삭제 시각(null이면 살아있음)
+    private Instant deletedAt;
+
+    @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    @UpdateTimestamp
-    @Column(name="updated_at", nullable = false)
+    @Column(nullable = false)
     private Instant updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        Instant now = Instant.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        this.updatedAt = Instant.now();
+    }
 }

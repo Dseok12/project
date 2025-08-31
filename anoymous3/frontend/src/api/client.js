@@ -14,23 +14,30 @@ const client = axios.create({
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
-    Accept: 'application/json'
-  }
+    Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  },
 })
 
-// 요청 인터셉터: 토큰 자동 첨부
+// ✅ 요청 인터셉터: 토큰 자동 첨부 (sessionStorage 우선, 없으면 localStorage)
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token =
+    sessionStorage.getItem('token') || localStorage.getItem('token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// 응답 인터셉터: 필요시 401 처리 등 확장 지점
+// ✅ 응답 인터셉터: 필요 시 공통 에러 처리 지점
 client.interceptors.response.use(
   (res) => res,
   (err) => {
-    // 예: 401 시 토큰 정리 (원하면 주석 해제)
-    // if (err?.response?.status === 401) localStorage.removeItem('token')
+    // 예) 401이면 저장소 정리 (원하면 주석 해제)
+    // if (err?.response?.status === 401) {
+    //   sessionStorage.removeItem('token')
+    //   sessionStorage.removeItem('activityId')
+    //   localStorage.removeItem('token')
+    //   localStorage.removeItem('activityId')
+    // }
     return Promise.reject(err)
   }
 )
