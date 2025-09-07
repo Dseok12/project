@@ -15,9 +15,11 @@
         <li v-for="p in posts" :key="p.id" class="list-item">
           <span v-if="p.notice" class="badge">공지</span>
           #{{ p.id }} {{ p.title }}
-          <span class="muted">· {{ new Date(p.createdAt).toLocaleString() }}</span>
+          <span class="muted">· {{ toLocal(p.createdAt) }}</span>
           <span class="grow"></span>
-          <button class="btn sm" @click="toggleNotice(p)">{{ p.notice ? '공지 해제' : '공지 지정' }}</button>
+          <button class="btn sm" @click="toggleNotice(p)">
+            {{ p.notice ? '공지 해제' : '공지 지정' }}
+          </button>
           <button class="btn sm btn-danger" @click="adminDeletePost(p.id)">삭제</button>
         </li>
       </ul>
@@ -25,13 +27,56 @@
 
     <div class="card">
       <h3>유저 관리</h3>
+
+      <div class="user-toolbar">
+        <input
+          v-model.trim="q"
+          class="input"
+          placeholder="닉네임(activityId) 또는 이메일 검색"
+          @keyup.enter="loadUsers"
+        />
+        <button class="btn" @click="loadUsers">검색</button>
+      </div>
+
       <ul class="list">
         <li v-for="u in users" :key="u.id" class="list-item">
-          {{u.activityId}} <span class="muted">({{u.email}})</span> · {{u.status}}
+          <b>{{ u.activityId }}</b>
+          <span class="muted">({{ u.email }})</span>
+          <span class="muted">· {{ u.role }}</span>
+          <span class="muted" v-if="u.status">· {{ u.status }}</span>
+          <span class="muted" v-if="u.suspendedUntil">· 정지 해제: {{ toLocal(u.suspendedUntil) }}</span>
+
           <span class="grow"></span>
-          <button class="btn sm" @click="suspend(u.id)">정지</button>
-          <button class="btn sm" @click="unsuspend(u.id)">해제</button>
-          <button class="btn sm btn-danger" @click="hardDelete(u.id)">탈퇴(삭제)</button>
+
+          <!-- 역할(권한) -->
+          <div class="btn-group">
+            <button
+              class="btn sm"
+              v-if="u.role !== 'ADMIN'"
+              @click="setRole(u.id, 'ADMIN')"
+              title="관리자로 승격"
+            >
+              관리자 승격
+            </button>
+            <button
+              class="btn sm"
+              v-else
+              @click="setRole(u.id, 'USER')"
+              title="관리자 권한 해제"
+            >
+              관리자 해제
+            </button>
+          </div>
+
+          <!-- 기간 정지/해제/탈퇴 -->
+          <div class="btn-group">
+            <button class="btn sm" @click="suspendDays(u.id, 3)">3일</button>
+            <button class="btn sm" @click="suspendDays(u.id, 7)">7일</button>
+            <button class="btn sm" @click="suspendDays(u.id, 15)">15일</button>
+            <button class="btn sm" @click="suspendDays(u.id, null)">영구</button>
+            <button class="btn sm" @click="unsuspend(u.id)">해제</button>
+            <button class="btn sm btn-danger" @click="hardDelete(u.id)">탈퇴</button>
+          </div>
         </li>
       </ul>
     </div>
@@ -42,45 +87,127 @@
 import { ref, onMounted } from 'vue'
 import client from '@/api/client'
 
-const posts = ref([]), users = ref([])
-const noticeTitle = ref(''), noticeBody = ref('')
+const posts = ref([])
+const users = ref([])
+const noticeTitle = ref('')
+const noticeBody = ref('')
 
-const load = async () => {
-  // 게시물(관리자용 전체 목록) — 필요 시 별도 파라미터/엔드포인트
-  const { data: ps } = await client.get('/posts', { params: { all: true, sort: 'createdAt,desc' } })
-  posts.value = ps?.content ?? ps ?? []
+// 검색어
+const q = ref('')
 
-  // (선택) 관리자 유저 목록 API가 있다면 사용
+// 유틸
+const unwrap = (data) => (Array.isArray(data) ? data : (data?.content ?? []))
+const toLocal = (d) => (d ? new Date(d).toLocaleString() : '')
+const isoAfterDays = (days) =>
+  new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+
+/* ===== 게시물 ===== */
+const loadPosts = async () => {
   try {
-    const { data: us } = await client.get('/api/admin/users')
-    users.value = Array.isArray(us) ? us : []
-  } catch { users.value = [] }
+    const { data } = await client.get('/admin/posts', { params: { size: 100, sort: 'createdAt,desc' } })
+    posts.value = unwrap(data)
+  } catch (e) {
+    console.error('loadPosts error', e)
+    posts.value = []
+  }
 }
 
 const createNotice = async () => {
   if (!noticeTitle.value.trim()) return alert('제목을 입력하세요.')
-  await client.post('/posts', { title: noticeTitle.value, content: noticeBody.value, notice: true })
-  noticeTitle.value = ''; noticeBody.value = ''; await load()
-}
-const toggleNotice = async (p) => {
-  await client.patch(`/api/admin/posts/${p.id}/notice`, { notice: !p.notice }); await load()
-}
-const adminDeletePost = async (id) => {
-  if (!confirm('정말 삭제하시겠습니까?')) return
-  await client.delete(`/api/admin/posts/${id}`); await load()
+  try {
+    await client.post('/admin/notices', { title: noticeTitle.value, content: noticeBody.value })
+    noticeTitle.value = ''
+    noticeBody.value = ''
+    await loadPosts()
+  } catch (e) {
+    console.error('createNotice error', e)
+    alert(e?.response?.data?.error || '공지 등록 실패')
+  }
 }
 
-const suspend = async (id) => {
-  await client.patch(`/api/admin/users/${id}/status`, { status: 'SUSPENDED' })
-  await load()
+const toggleNotice = async (p) => {
+  try {
+    await client.patch(`/admin/posts/${p.id}/notice`, { notice: !p.notice })
+    await loadPosts()
+  } catch (e) {
+    console.error('toggleNotice error', e)
+    alert(e?.response?.data?.error || '공지 토글 실패')
+  }
 }
+
+const adminDeletePost = async (id) => {
+  if (!confirm('정말 삭제하시겠습니까?')) return
+  try {
+    await client.delete(`/admin/posts/${id}`)
+    await loadPosts()
+  } catch (e) {
+    console.error('adminDeletePost error', e)
+    alert(e?.response?.data?.error || '삭제 실패')
+  }
+}
+
+/* ===== 유저 ===== */
+const loadUsers = async () => {
+  try {
+    const { data } = await client.get('/admin/users', {
+      params: { q: q.value, size: 50, sort: 'id,desc' }
+    })
+    users.value = unwrap(data)
+  } catch (e) {
+    console.error('loadUsers error', e)
+    users.value = []
+    alert('유저 목록을 불러오지 못했습니다.')
+  }
+}
+
+// 역할(권한) 변경: USER ↔ ADMIN
+const setRole = async (id, role) => {
+  try {
+    await client.patch(`/admin/users/${id}/role`, { role })
+    await loadUsers()
+  } catch (e) {
+    console.error('setRole error', e)
+    alert(e?.response?.data?.error || '권한 변경 실패')
+  }
+}
+
+// 기간 정지(3/7/15일) & 영구정지(null)
+const suspendDays = async (id, daysOrNull) => {
+  const body = daysOrNull == null
+    ? { status: 'SUSPENDED', suspendedUntil: null } // 영구정지
+    : { status: 'SUSPENDED', suspendedUntil: isoAfterDays(daysOrNull) }
+  try {
+    await client.patch(`/admin/users/${id}/status`, body)
+    await loadUsers()
+  } catch (e) {
+    console.error('suspendDays error', e)
+    alert('정지 처리 실패')
+  }
+}
+
 const unsuspend = async (id) => {
-  await client.patch(`/api/admin/users/${id}/status`, { status: 'ACTIVE' })
-  await load()
+  try {
+    await client.patch(`/admin/users/${id}/status`, { status: 'ACTIVE' })
+    await loadUsers()
+  } catch (e) {
+    console.error('unsuspend error', e)
+    alert('해제 처리 실패')
+  }
 }
+
 const hardDelete = async (id) => {
   if (!confirm('정말 탈퇴(삭제)하시겠습니까?')) return
-  await client.delete(`/api/admin/users/${id}`); await load()
+  try {
+    await client.delete(`/admin/users/${id}`)
+    await loadUsers()
+  } catch (e) {
+    console.error('hardDelete error', e)
+    alert('탈퇴(삭제) 실패')
+  }
+}
+
+const load = async () => {
+  await Promise.all([loadPosts(), loadUsers()])
 }
 
 onMounted(load)
@@ -99,6 +226,9 @@ onMounted(load)
 .badge{ font-size:11px; font-weight:900; padding:2px 6px; border-radius:999px; background:#ffedd5; color:#9a3412; border:1px solid #fed7aa; }
 .muted{ color:#6b7280; font-size:12px; }
 .grow{ flex:1; }
+.user-toolbar{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+.btn-group{ display:flex; gap:6px; flex-wrap:wrap; }
+
 @media (prefers-color-scheme: dark){
   .card{ background:#0b1220; border-color:#1f2937; color:#e5e7eb; }
   .input{ background:#0b1220; color:#e5e7eb; border-color:#334155; }

@@ -26,24 +26,34 @@ const doLogin = async () => {
       email: email.value.trim(),
       password: password.value
     })
-    // data: { token, activityId }
-    store.dispatch('login', { token: data.token, activityId: data.activityId })
+    // ✅ 백엔드 LoginRes: { token, activityId, role }
+    const role = data.role || 'USER'
 
-    // redirect 쿼리 우선
+    await store.dispatch('login', {
+      token: data.token,
+      activityId: data.activityId,
+      role,                // ✅ 꼭 저장
+      persist: 'local'
+    })
+
+    // ✅ redirect 파라미터가 있으면 우선 사용
     const redirect = route.query.redirect
     if (typeof redirect === 'string' && redirect.startsWith('/')) {
       router.push(redirect)
     } else {
-      router.push('/')
+      // ADMIN이면 관리자 대시보드로, 아니면 홈으로
+      router.push(role === 'ADMIN' ? '/admin' : '/')
     }
   } catch (e) {
     console.error(e)
-    errorMsg.value = '로그인 실패. 이메일/비밀번호를 확인하세요.'
+    const msg = e?.response?.data?.error || '로그인 실패. 이메일/비밀번호를 확인하세요.'
+    errorMsg.value = msg
   } finally {
     loading.value = false
   }
 }
 </script>
+
 
 <template>
   <section class="login">

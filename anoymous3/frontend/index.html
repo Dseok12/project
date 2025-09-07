@@ -1,13 +1,95 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>anoy</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <!-- ===== 기본 SEO ===== -->
+  <title>어노이(anoy) – 익명 커뮤니티</title>
+  <meta name="description" content="anoy(어노이)는 익명으로 자유롭게 소통하는 커뮤니티입니다. 공지·게시글·댓글로 안전하게 이야기하세요." />
+  <meta name="keywords" content="anoy, 어노이, 익명 커뮤니티, 자유게시판, 공지, 토론" />
+  <meta name="author" content="anoy" />
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <!-- 배포 도메인으로 교체 -->
+  <link rel="canonical" href="https://www.example.com/" />
+
+  <!-- ===== 색상/아이콘 ===== -->
+  <meta name="theme-color" content="#2563eb" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+
+  <!-- ===== Open Graph ===== -->
+  <meta property="og:locale" content="ko_KR" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="anoy" />
+  <meta property="og:title" content="어노이(anoy) – 익명 커뮤니티" />
+  <meta property="og:description" content="익명으로 자유롭게 소통하는 anoy 커뮤니티. 공지와 게시글을 확인해 보세요." />
+  <!-- 배포 도메인으로 교체 -->
+  <meta property="og:url" content="https://www.example.com/" />
+  <!-- 1200x630 이미지 준비 후 교체 -->
+  <meta property="og:image" content="/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="anoy – 익명 커뮤니티" />
+
+  <!-- ===== Twitter Card ===== -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="어노이(anoy) – 익명 커뮤니티" />
+  <meta name="twitter:description" content="익명으로 자유롭게 소통하는 anoy 커뮤니티." />
+  <meta name="twitter:image" content="/assets/og-image.png" />
+
+  <!-- ===== 성능(선택) ===== -->
+  <!-- 폰트/백엔드 도메인 등을 쓸 경우만 주석 해제 후 사용
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://api.example.com" crossorigin />
+    -->
+
+  <!-- ===== 구조화 데이터(JSON-LD) ===== -->
+  <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "anoy",
+        "url": "https://www.example.com/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://www.example.com/search?q={q}",
+          "query-input": "required name=q"
+        }
+      }
+    </script>
+  <!-- (선택) 조직 정보가 있으면 로고/소셜을 포함해 추가
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "anoy",
+        "url": "https://www.example.com/",
+        "logo": "https://www.example.com/logo.png",
+        "sameAs": []
+      }
+    </script>
+    -->
+
+  <!-- ===== AdSense 준비(나중에 client id 넣고 주석 해제) ===== -->
+  <!--
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXX"
+      crossorigin="anonymous"
+    ></script>
+    -->
+</head>
+
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
 </html>

@@ -188,7 +188,7 @@ onMounted(fetchPosts)
 
 <style scoped>
 .posts {
-  max-width: 760px;
+  max-width: 100%;
   margin: 24px auto;
   padding: 0 16px;
 }

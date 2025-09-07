@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
+import Posts from './Posts.vue'
 
 const store = useStore()
 const router = useRouter()
@@ -10,6 +11,8 @@ const isAuthed = computed(() => store.getters.isAuthed)
 const activityId = computed(() => store.state.activityId)
 
 const go = (path) => router.push(path)
+
+
 </script>
 
 <template>
@@ -36,7 +39,7 @@ const go = (path) => router.push(path)
         </template>
       </div>
     </div>
-
+    
     <!-- 특징 섹션 -->
     <div class="features">
       <article class="feature">
@@ -44,17 +47,23 @@ const go = (path) => router.push(path)
         <h3>익명성</h3>
         <p>활동 아이디만 노출. 실제 이메일은 보호됩니다.</p>
       </article>
+      <!--
       <article class="feature">
         <div class="icon">📝</div>
         <h3>간편한 작성</h3>
         <p>엔터 줄바꿈 그대로 저장되어 읽기 편합니다.</p>
       </article>
+      -->
       <article class="feature">
         <div class="icon">📌</div>
         <h3>공지 & 게시판</h3>
         <p>공지사항과 자유 게시판으로 깔끔하게 분리.</p>
       </article>
     </div>
+
+    <Posts />
+
+
   </section>
 </template>
 
@@ -144,7 +153,7 @@ const go = (path) => router.push(path)
   width: 100%;
   max-width: 960px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
+  grid-template-columns: repeat(1, minmax(0,1fr));
   gap: 12px;
 }
 .feature {
@@ -196,4 +205,6 @@ const go = (path) => router.push(path)
   .feature h3 { color: #e5e7eb; }
   .feature p { color: #cbd5e1; }
 }
+
+.posts{width: 100%;}
 </style>

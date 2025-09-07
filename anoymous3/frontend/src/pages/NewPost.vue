@@ -107,7 +107,7 @@ const onKeydown = (e) => {
         </div>
       </form>
 
-      <!-- 미리보기 카드 -->
+      <!-- 미리보기 카드
       <aside class="card preview">
         <div class="pv-head">
           <h3>미리보기</h3>
@@ -116,6 +116,7 @@ const onKeydown = (e) => {
         <h4 class="pv-title">{{ title || '제목 미입력' }}</h4>
         <article class="pv-body">{{ content || '내용 미입력' }}</article>
       </aside>
+       -->
     </div>
   </section>
 </template>
@@ -146,7 +147,7 @@ const onKeydown = (e) => {
 }
 
 .grid {
-  max-width: 1080px; margin: 0 auto;
+  margin: 0 auto;
   display: grid; gap: 14px; grid-template-columns: 1fr;
 }
 @media (min-width: 960px) {
@@ -165,7 +166,7 @@ const onKeydown = (e) => {
 
 /* 에디터 */
 /* .editor { display: grid; gap: 8px; } */
-.posts{display: block;}
+.posts{width: 100%; display: block;}
 .editor{margin-bottom: 1rem;}
 .label { font-size: 12px; color: #374151; font-weight: 800; }
 .input, .textarea {

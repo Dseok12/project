@@ -180,8 +180,8 @@ onMounted(fetchNotices)
   margin-bottom: 14px;
 }
 .hero-inner {
-  display: grid;
-  grid-template-columns: 1fr auto;
+  display: flex;
+  align-items: center;justify-content: space-between;
   gap: 12px;
   padding: 18px 18px 16px;
   align-items: center;
@@ -217,6 +217,7 @@ onMounted(fetchNotices)
   letter-spacing: .02em;
 }
 .table tbody td {
+  text-align: left;
   padding: 14px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
@@ -323,7 +324,7 @@ onMounted(fetchNotices)
 @media (max-width: 640px) {
   .table thead { display: none; }
   .table tbody tr { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 10px 8px; }
-  .table tbody td { border: 0; padding: 4px 8px; }
+  .table tbody td { border: 0; padding: 4px 8px;test-align: left; }
   .col-num   { order: 1; font-weight: 800; color: #111827; }
   .col-title { order: 2; }
   .col-admin { order: 3; }

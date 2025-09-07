@@ -27,7 +27,7 @@ const year = new Date().getFullYear()
       <div class="meta">
         <span>© {{ year }} Anoy. All rights reserved.</span>
         <span class="dot">•</span>
-        <a href="mailto:support@anoy.example" class="contact">문의: support@anoy.example</a>
+        <a href="mailto:wkqxhd2020@naver.com" class="contact">문의: wkqxhd2020@naver.com</a>
       </div>
     </div>
   </footer>

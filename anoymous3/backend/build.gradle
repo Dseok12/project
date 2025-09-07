@@ -47,6 +47,8 @@ dependencies {
 	implementation 'org.jsoup:jsoup:1.17.2'
 	implementation 'com.vladsch.flexmark:flexmark-all:0.64.8'
 
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+
 }
 
 tasks.named('test') { useJUnitPlatform() }

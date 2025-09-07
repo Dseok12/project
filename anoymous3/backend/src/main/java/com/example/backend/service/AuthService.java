@@ -3,6 +3,8 @@ package com.example.backend.service;
 
 import com.example.backend.domain.EmailVerification;
 import com.example.backend.domain.User;
+import com.example.backend.domain.Role;
+import com.example.backend.domain.UserStatus;
 import com.example.backend.dto.AuthDtos.*;
 import com.example.backend.repo.EmailVerificationRepository;
 import com.example.backend.repo.UserRepository;
@@ -111,15 +113,21 @@ public class AuthService {
         }
 
         String hash = BCrypt.hashpw(req.password(), BCrypt.gensalt());
+
+        // ✅ 신규 가입 시 기본 ROLE/STATUS 지정 (USER / ACTIVE)
         User u = User.builder()
                 .email(email)
                 .passwordHash(hash)
-                // 저장 시에도 정규화 적용
-                .activityId(normActivityId)
+                .activityId(normActivityId) // 저장 시에도 정규화 적용
+                .role(Role.USER)
+                .status(UserStatus.ACTIVE)
                 .build();
+
         userRepo.save(u);
     }
 
+    /** ✅ 로그인: ROLE을 JWT/응답에 포함 + 상태 체크(정지/삭제) */
+    @Transactional
     public LoginRes login(LoginReq req) {
         final String email = normalizeEmail(req.email());
         User u = userRepo.findByEmail(email)
@@ -129,14 +137,33 @@ public class AuthService {
             throw new IllegalArgumentException("비밀번호 불일치");
         }
 
-        // JWT에 role/aid를 넣어 발급
+        // ✅ 상태 체크
+        if (u.getStatus() == UserStatus.DELETED) {
+            throw new IllegalStateException("삭제된 계정입니다.");
+        }
+        if (u.getStatus() == UserStatus.SUSPENDED) {
+            Instant until = u.getSuspendedUntil();
+            // until 이 없거나 미래면 아직 정지 상태
+            if (until == null || until.isAfter(Instant.now())) {
+                String msg = (until == null)
+                        ? "정지된 계정입니다."
+                        : "정지 해제 예정: " + until.toString();
+                throw new IllegalStateException(msg);
+            }
+            // 정지 기간 지났으면 자동 해제
+            u.setStatus(UserStatus.ACTIVE);
+            u.setSuspendedUntil(null);
+            userRepo.save(u);
+        }
+
+        // ✅ JWT에 role/activityId 클레임 포함
         String roleClaim = (u.getRole() != null) ? u.getRole().name() : "USER";
         String token = jwt.createToken(
                 u.getEmail(),
                 Map.of("activityId", u.getActivityId(), "role", roleClaim)
         );
 
-        // LoginRes가 (token, activityId, role) 시그니처일 때
+        // ✅ 프론트에서 바로 사용할 수 있게 role 응답에 포함
         return new LoginRes(token, u.getActivityId(), roleClaim);
     }
 
