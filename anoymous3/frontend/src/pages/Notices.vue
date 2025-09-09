@@ -1,3 +1,4 @@
+<!-- frontend/src/pages/Notices.vue -->
 <template>
   <section class="notice-wrap">
     <!-- 헤더 배너 -->
@@ -127,8 +128,7 @@ const fetchNotices = async () => {
   loading.value = true
   error.value = ''
   try {
-    // ✅ 백엔드가 Spring Pageable이라면 아래 쿼리를 사용하세요.
-    //    (엔드포인트가 다르면 '/api/notices' 등으로 변경)
+    // Spring Pageable과 호환
     const { data } = await client.get('/posts', {
       params: { notice: true, page: page.value, size: size.value, sort: 'createdAt,desc' }
     })
@@ -324,7 +324,7 @@ onMounted(fetchNotices)
 @media (max-width: 640px) {
   .table thead { display: none; }
   .table tbody tr { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 10px 8px; }
-  .table tbody td { border: 0; padding: 4px 8px;test-align: left; }
+  .table tbody td { border: 0; padding: 4px 8px; text-align: left; } /* ← fix */
   .col-num   { order: 1; font-weight: 800; color: #111827; }
   .col-title { order: 2; }
   .col-admin { order: 3; }

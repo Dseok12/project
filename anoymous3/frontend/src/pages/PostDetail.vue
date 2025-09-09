@@ -117,12 +117,35 @@ const replyText = ref('')
 const editingId = ref(null)       // 현재 수정 중인 comment id
 const editingText = ref('')
 
+/** HTML → 순수 텍스트(+개행)로 복원(편집 초기값용) */
+const htmlToPlain = (html) => {
+  if (!html) return ''
+  const tmp = document.createElement('div')
+  tmp.innerHTML = html
+  // <br> 보존
+  tmp.querySelectorAll('br').forEach(br => (br.outerHTML = '\n'))
+  const text = tmp.textContent || ''
+  return text.replace(/\u00A0/g, ' ').trimEnd()
+}
+
 const fetchComments = async () => {
   cLoading.value = true
   cError.value = ''
   try {
     const { data } = await client.get(`/posts/${route.params.id}/comments`)
-    comments.value = Array.isArray(data) ? data : []
+    const raw = Array.isArray(data) ? data : []
+    const me = store.state.activityId
+    comments.value = raw.map(c => {
+      const author = c?.authorActivityId ?? null
+      const html = c?.contentHtml ?? c?.html ?? null
+      return {
+        ...c,
+        // 백엔드가 my를 주지 않으므로 클라이언트에서 보정
+        my: !!(author && me && author === me),
+        // 편집 시작 시 자연스러운 기본값
+        _plainForEdit: html ? htmlToPlain(html) : (c?.content ?? c?.contentRaw ?? '')
+      }
+    })
   } catch (e) {
     console.error(e)
     cError.value = '댓글을 불러오지 못했습니다.'
@@ -216,7 +239,9 @@ const delComment = async (id) => {
 const startEdit = (id, currentContent) => {
   replyFor.value = null
   editingId.value = id
-  editingText.value = currentContent ?? ''
+  // 서버가 HTML을 주는 구조이므로 없을 때는 미리 추출해 둔 _plainForEdit 사용
+  const fromList = comments.value.find(x => x.id === id)?._plainForEdit ?? ''
+  editingText.value = (currentContent ?? fromList ?? '').trim()
 }
 
 const cancelEdit = () => {
@@ -493,7 +518,7 @@ onMounted(async () => {
               :sanitize="sanitizeComment"
               :editing-id="editingId"
               :editing-text="editingText"
-              @start-edit="(id, content) => { editingId = id; editingText = content || '' }"
+              @start-edit="(id, content) => { editingId = id; editingText = (content ?? '').trim() }"
               @cancel-edit="cancelEdit"
               @update:editing-text="(v) => editingText = v"
               @save-edit="saveEdit"
@@ -594,11 +619,10 @@ onMounted(async () => {
 }
 
 /* 헤더 라인: 이름(좌) 날짜(우) */
-.c-headline { gap: 8px; }
+.c-headline { display:flex; align-items:center; gap:8px; }
 .c-name { font-weight: 900; color: #111827; }
 .c-date { color: #9ca3af; font-size: 12px; }
 .flex-1 { flex: 1; }
-.c-children{padding: 10px;}
 
 /* 본문 & 액션 */
 .c-body { margin-top: 6px; line-height: 1.7; font-size: 15px; color: #111827; }
@@ -616,6 +640,8 @@ onMounted(async () => {
   padding-left: 12px;
   border-left: 2px dashed #e5e7eb;
 }
+
+.c-children .c-item{padding: 20px;border-top: 1px solid #6b7280;}
 
 /* 편집/답글 입력 공통 */
 .input {
@@ -679,8 +705,6 @@ onMounted(async () => {
 .c-list.smooth > .c-item:first-child{ border-top:0; }
 .c-list.smooth > .c-item:hover{ background:#fafafa; }
 
-.c-headline{dispflay:flex; align-items:center; gap:8px;}
-
 /* 비어있음 */
 .empty { color: #6b7280; text-align: center; padding: 12px 8px; }
 
@@ -713,8 +737,4 @@ onMounted(async () => {
   .c-list.smooth > .c-item{ border-color:#1f2937; }
   .c-list.smooth > .c-item:hover{ background:#0b1220; }
 }
-
-
-
-
 </style>
