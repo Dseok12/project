@@ -1,362 +1,185 @@
 <script setup>
-import { onMounted, ref, computed, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import client from '@/api/client'
+
+import useAuth from '@/composables/useAuth'
+import AppPagination from '@/components/common/AppPagination.vue'
+import SkeletonList from '@/components/common/SkeletonList.vue'
+import PostList from '@/components/posts/PostList.vue'
 
 const store = useStore()
 const route = useRoute()
 const router = useRouter()
+const { isAuthed } = useAuth()
 
-const isAuthed = computed(() => store.getters.isAuthed)
+const posts = computed(() => store.getters['posts/list'])
+const loading = computed(() => store.getters['posts/isLoading'])
+const errorMsg = computed(() => store.getters['posts/error'])
+const pagination = computed(() => store.getters['posts/pagination'])
 
-const posts = ref([])
-const loading = ref(false)
-const errorMsg = ref('')
+const currentPage = computed(() => pagination.value.page ?? 1)
+const totalPages = computed(() => pagination.value.totalPages ?? 1)
+const totalElements = computed(() => pagination.value.totalElements ?? 0)
 
-// ===== 페이징 상태 =====
-const pageSize = 20
-const currentPage = ref(Number(route.query.page || 1)) // UI는 1-based
-const totalPages = ref(1)
-const totalElements = ref(0)
-
-// 작성자 필드 안전 추출
-const getAuthorId = (p) => (
-  p?.authorActivityId ??
-  p?.authorId ??
-  p?.author?.activityId ??
-  p?.activityId ??
-  null
-)
-
-// 아이디 마스킹
-const maskId = (id) => {
-  if (!id) return '익명'
-  const s = String(id)
-  if (s.length <= 2) return s
-  return s[0] + '*'.repeat(s.length - 2) + s[s.length - 1]
-}
-
-// 페이지 이동 헬퍼(라우터 쿼리 동기화)
 const goPage = (page) => {
-  const safe = Math.max(1, Math.min(page, totalPages.value || 1))
-  if (safe === currentPage.value) return
-  router.push({ path: '/posts', query: { page: safe } })
+  const target = Math.max(1, page)
+  if (Number(route.query.page || 1) === target) return
+  router.push({ path: '/posts', query: { page: target } })
 }
 
-// 응답 파싱: Page<T> / List<T> 호환
-const parsePostsResponse = (data) => {
-  if (data && Array.isArray(data.content)) {
-    return {
-      items: data.content,
-      totalPages: data.totalPages ?? 1,
-      totalElements: data.totalElements ?? data.content.length,
-      pageNumber: (data.number ?? 0) + 1, // 0-based -> 1-based
-    }
-  }
-  if (Array.isArray(data)) {
-    return {
-      items: data,
-      totalPages: 1,
-      totalElements: data.length,
-      pageNumber: 1,
-    }
-  }
-  return { items: [], totalPages: 1, totalElements: 0, pageNumber: 1 }
-}
-
-const fetchPosts = async () => {
-  loading.value = true
-  errorMsg.value = ''
+const fetchPage = async (pageValue) => {
+  const fallback = Number(pageValue ?? 1)
+  const safe = Number.isFinite(fallback) && fallback > 0 ? Math.floor(fallback) : 1
   try {
-    const { data } = await client.get('/posts', {
-      params: {
-        page: Math.max(0, currentPage.value - 1), // 서버는 0-based
-        size: pageSize,
-        sort: 'createdAt,desc',
-      }
+    const { page: resolvedPage, corrected } = await store.dispatch('posts/fetchList', {
+      page: safe,
     })
-    const parsed = parsePostsResponse(data)
-    posts.value = parsed.items
-    totalPages.value = parsed.totalPages
-    totalElements.value = parsed.totalElements
-    currentPage.value = parsed.pageNumber
-
-    // 쿼리 범위를 넘어가면 마지막 페이지로 보정
-    if (currentPage.value > totalPages.value) {
-      goPage(totalPages.value)
+    if (corrected && resolvedPage !== safe) {
+      router.replace({ path: '/posts', query: { page: resolvedPage } })
     }
-  } catch (e) {
-    console.error('fetchPosts error', e)
-    errorMsg.value = e?.response?.status
-      ? `목록 로드 실패 (HTTP ${e.response.status})`
-      : '게시물을 불러오지 못했습니다.'
-  } finally {
-    loading.value = false
+  } catch (error) {
+    console.error('posts/fetchPage failed', error)
   }
 }
 
-// URL 쿼리(page) 변경 시 다시 로드
 watch(
   () => route.query.page,
-  (v) => {
-    const p = Number(v || 1)
-    if (!Number.isFinite(p) || p < 1) return
-    currentPage.value = p
-    fetchPosts()
-  }
+  (value) => {
+    fetchPage(value)
+  },
+  { immediate: true }
 )
 
-onMounted(fetchPosts)
+const openPost = (post) => {
+  if (!post?.id) return
+  router.push({ name: 'post-detail', params: { id: post.id } })
+}
 </script>
 
 <template>
   <section class="posts">
-    <header class="header">
-      <h2 class="title">게시물(어노이)</h2>
-      <router-link v-if="isAuthed" to="/posts/new">
-        <button class="btn btn-primary">새 글</button>
+    <header class="posts__header">
+      <div>
+        <h1 class="posts__title">익명 게시판</h1>
+        <p class="posts__subtitle">익명으로 진솔한 이야기를 나누고 공감해요.</p>
+      </div>
+      <router-link v-if="isAuthed" to="/posts/new" class="posts__cta">
+        새 글 쓰기
       </router-link>
     </header>
 
-    <!-- 로딩 -->
-    <div v-if="loading" class="card-list">
-      <div v-for="i in 6" :key="i" class="card skeleton">
-        <div class="sk-title"></div>
-        <div class="sk-meta"></div>
-        <div class="sk-line"></div>
-      </div>
-    </div>
+    <SkeletonList v-if="loading" :rows="6" />
 
-    <!-- 에러 -->
-    <div v-else-if="errorMsg" class="error-box">
-      {{ errorMsg }}
-    </div>
+    <div v-else-if="errorMsg" class="posts__error">{{ errorMsg }}</div>
 
-    <!-- 목록 -->
     <template v-else>
-      <div class="card-list">
-        <article
-          v-for="p in posts"
-          :key="p.id"
-          class="card item"
-          @click="$router.push(`/posts/${p.id}`)"
-          role="button"
-          tabindex="0"
-        >
-          <h3 class="item-title">{{ p.title }}</h3>
-          <div class="item-meta">
-            <span class="badge">#{{ p.id }}</span>
-            <span class="dot">•</span>
-            <span class="time">{{ new Date(p.createdAt).toLocaleString() }}</span>
-            <span class="dot">•</span>
-            <span class="author" title="작성자">
-              {{ maskId(getAuthorId(p)) }}
-            </span>
-          </div>
-        </article>
-      </div>
+      <PostList v-if="posts.length" :posts="posts" @select="openPost" />
+      <p v-else class="posts__empty">첫 게시물을 작성해보세요!</p>
 
-      <div v-if="!loading && posts.length === 0" class="empty">
-        아직 게시물이 없습니다.
-      </div>
-
-      <!-- 페이지네이션 -->
-      <nav v-if="totalPages > 1" class="pgn">
-        <button class="pgn-btn" @click="goPage(currentPage-1)" :disabled="currentPage<=1">이전</button>
-
-        <template v-for="n in totalPages" :key="n">
-          <button
-            v-if="Math.abs(n - currentPage) <= 3 || n===1 || n===totalPages"
-            class="pgn-btn"
-            :class="{ active: n===currentPage }"
-            @click="goPage(n)"
-            :disabled="n===currentPage"
-          >
-            {{ n }}
-          </button>
-          <span v-else-if="n===currentPage-4 || n===currentPage+4" class="pgn-ellipsis">…</span>
-        </template>
-
-        <button class="pgn-btn" @click="goPage(currentPage+1)" :disabled="currentPage>=totalPages">다음</button>
-
-        <span class="pgn-total">총 {{ totalElements.toLocaleString() }}개</span>
-      </nav>
+      <footer class="posts__footer">
+        <AppPagination
+          v-if="totalPages > 1"
+          :current="currentPage"
+          :total="totalPages"
+          :disabled="loading"
+          @change="goPage"
+        />
+        <p class="posts__total">총 {{ totalElements.toLocaleString() }}개의 글</p>
+      </footer>
     </template>
   </section>
 </template>
 
 <style scoped>
 .posts {
-  max-width: 100%;
-  margin: 24px auto;
-  padding: 0 16px;
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.title {
-  margin: 0;
-  margin-right: auto;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-/* 버튼 */
-.btn {
-  appearance: none;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  transition: transform .03s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
-  user-select: none;
-}
-.btn:active { transform: translateY(1px); }
-.btn-primary {
-  background: #2563eb;   /* blue-600 */
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(37,99,235,0.25);
-}
-.btn-primary:hover { background: #1d4ed8; } /* blue-700 */
-
-/* 카드 리스트 */
-.card-list {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 24px;
 }
 
-/* 카드 */
-.card {
-  background: var(--card-bg, #fff);
-  border: 1px solid var(--card-border, #eaeaea);
-  border-radius: 14px;
-  padding: 16px 16px 14px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.05);
-  cursor: pointer;
-}
-
-/* 아이템 카드 */
-.item {
-  transition: transform .06s ease, box-shadow .2s ease, border-color .2s ease;
-}
-.item:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.08);
-  border-color: #dbeafe; /* blue-100 */
-}
-.item:focus { outline: 2px solid #93c5fd; } /* focus-visible 보조 */
-
-/* 아이템 타이틀/메타 */
-.item-title {
-  margin: 0 0 6px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #0f172a; /* slate-900 */
-}
-.item-meta {
+.posts__header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   align-items: center;
-  gap: 8px;
-  color: #6b7280; /* slate-500 */
-  font-size: 12px;
-}
-.badge {
-  background: #f1f5f9;  /* slate-100 */
-  color: #334155;       /* slate-700 */
-  border: 1px solid #e2e8f0;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-weight: 600;
-}
-.dot { opacity: .6; }
-.time { opacity: .9; }
-.author { font-weight: 600; color: #334155; }
-
-/* 빈 상태 */
-.empty {
-  color: #6b7280;
-  text-align: center;
-  padding: 16px 8px;
+  justify-content: space-between;
 }
 
-/* 에러 */
-.error-box {
-  border: 1px solid #fecaca;      /* red-200 */
-  background: #fff1f2;            /* rose-50 */
-  color: #991b1b;                 /* red-800 */
-  padding: 12px 14px;
-  border-radius: 12px;
+.posts__title {
+  margin: 0;
+  font-size: clamp(22px, 4vw, 28px);
+  font-weight: 900;
+  color: #0f172a;
 }
 
-/* 페이지네이션 */
-.pgn {
-  display: flex;
-  gap: 6px;
+.posts__subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.posts__cta {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  margin-top: 14px;
+  gap: 6px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1, #2563eb);
+  color: #ffffff;
+  text-decoration: none;
+  box-shadow: 0 16px 32px rgba(79, 70, 229, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
 }
-.pgn-btn {
-  min-width: 36px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb; /* gray-200 */
-  background: #fff;
-  color: #374151; /* gray-700 */
-  cursor: pointer;
-  transition: background .2s ease, border-color .2s ease, color .2s ease;
-}
-.pgn-btn:hover { background: #f9fafb; border-color: #d1d5db; }
-.pgn-btn:disabled {
-  background: #f3f4f6; color: #9ca3af; cursor: not-allowed;
-}
-.pgn-btn.active {
-  background: #2563eb; color: #fff; border-color: #2563eb;
-  box-shadow: 0 6px 16px rgba(37,99,235,0.25);
-}
-.pgn-ellipsis { color: #9ca3af; padding: 0 2px; }
-.pgn-total { margin-left: 8px; font-size: 12px; color: #6b7280; }
 
-/* 스켈레톤 */
-@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
-.skeleton {
-  position: relative;
-  overflow: hidden;
+.posts__cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 36px rgba(37, 99, 235, 0.28);
 }
-.skeleton::before {
-  content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.06) 40px, rgba(0,0,0,0.03) 80px);
-  background-size: 600px 100%;
-  animation: shimmer 1.2s infinite linear;
-}
-.sk-title { height: 18px; width: 60%; background: transparent; margin-bottom: 8px; }
-.sk-meta  { height: 12px; width: 30%; background: transparent; margin-bottom: 10px; }
-.sk-line  { height: 12px; width: 90%; background: transparent; }
 
-/* 다크 모드 */
+.posts__cta:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 4px;
+}
+
+.posts__error,
+.posts__empty {
+  margin: 0;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  background: rgba(248, 250, 252, 0.7);
+  color: #475569;
+  text-align: center;
+  font-size: 14px;
+}
+
+.posts__footer {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.posts__total {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
 @media (prefers-color-scheme: dark) {
-  .card {
-    --card-bg: #0b1220;
-    --card-border: #1f2937;
-    color: #e5e7eb;
+  .posts__title { color: #e2e8f0; }
+  .posts__subtitle { color: #cbd5e1; }
+  .posts__error,
+  .posts__empty {
+    border-color: rgba(71, 85, 105, 0.6);
+    background: rgba(15, 23, 42, 0.85);
+    color: #cbd5e1;
   }
-  .item-title { color: #e5e7eb; }
-  .item:hover { border-color: #1e293b; box-shadow: 0 12px 32px rgba(0,0,0,0.5); }
-  .badge { background: #0f172a; border-color: #1f2937; color: #e2e8f0; }
-  .pgn-btn { background: #0b1220; border-color: #334155; color: #e5e7eb; }
-  .pgn-btn:hover { background: #0f172a; border-color: #475569; }
-  .pgn-btn:disabled { background: #0b1220; color: #64748b; }
+  .posts__total { color: #cbd5e1; }
 }
 </style>

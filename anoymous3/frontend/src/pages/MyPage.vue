@@ -1,12 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
+import useAuth from '@/composables/useAuth'
 
-const store = useStore()
 const route = useRoute()
 const router = useRouter()
+const { isAuthed, logout, setActivityId } = useAuth()
 
 // 탭
 const tabs = ['profile', 'password', 'posts', 'activity', 'account']
@@ -40,8 +40,6 @@ const idOk = ref(false)
 const idLoading = ref(false)
 
 // 로그인 여부/현재 아이디
-const isAuthed = computed(() => store.getters.isAuthed)
-const storeActivityId = computed(() => store.state.activityId)
 
 // 헬퍼
 const toLocal = (iso) => (iso ? new Date(iso).toLocaleString() : '')
@@ -100,7 +98,7 @@ const changePassword = async () => {
       newPassword: newPw.value
     })
     alert('비밀번호가 변경되었습니다. 다시 로그인해 주세요.')
-    await store.dispatch('logout')
+    await logout()
     router.push('/login')
   } catch (e) {
     apiCatch(e, '비밀번호 변경에 실패했습니다.')
@@ -190,7 +188,7 @@ const changeActivityId = async () => {
 
     // 스토어/스토리지에 activityId만 갱신 (토큰은 그대로)
     const newId = data?.activityId || id
-    await store.dispatch('setActivityId', newId)
+    await setActivityId(newId)
 
     // 로컬 상태도 즉시 반영
     me.value.activityId = newId

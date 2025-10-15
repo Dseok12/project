@@ -108,7 +108,7 @@ const router = createRouter({
 let didInit = false
 router.beforeEach((to) => {
   if (!didInit) {
-    store.dispatch("initFromStorage")
+    store.dispatch('auth/initFromStorage')
     didInit = true
   }
 
@@ -117,8 +117,8 @@ router.beforeEach((to) => {
     document.title = to.meta.title
   }
 
-  const authed = store.getters.isAuthed
-  const isAdmin = store.getters.isAdmin
+  const authed = store.getters['auth/isAuthed']
+  const isAdmin = store.getters['auth/isAdmin']
 
   // 보호 라우트
   if (to.meta?.requiresAuth && !authed) {

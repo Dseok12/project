@@ -1,15 +1,11 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useStore } from 'vuex'
+import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import useAuth from '@/composables/useAuth'
 
-const store = useStore()
 const router = useRouter()
 const route = useRoute()
-
-const isAuthed = computed(() => store.getters.isAuthed)
-const isAdmin  = computed(() => store.getters.isAdmin)     // ✅ 추가
-const activityId = computed(() => store.state.activityId)
+const { isAuthed, isAdmin, activityId, logout: logoutAction } = useAuth()
 
 // 모바일 메뉴 열림/닫힘
 const menuOpen = ref(false)
@@ -19,7 +15,7 @@ const toggleMenu = () => { menuOpen.value = !menuOpen.value }
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
 const logout = async () => {
-  await store.dispatch('logout')   // ✅ 스토리지/스토어 모두 정리
+  await logoutAction()   // ✅ 스토리지/스토어 모두 정리
   router.push('/')                 // ✅ 메인 홈으로 이동
 }
 </script>

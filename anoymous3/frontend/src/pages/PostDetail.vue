@@ -2,15 +2,15 @@
 <script setup>
 import { onMounted, ref, computed, defineComponent, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useStore } from 'vuex'
 import client from '@/api/client'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
+import useAuth from '@/composables/useAuth'
 
 /* -------------------- 공통 상태 -------------------- */
 const route = useRoute()
 const router = useRouter()
-const store = useStore()
+const { activityId: activityIdRef, isAuthed } = useAuth()
 
 const post = ref(null)
 const loading = ref(false)
@@ -39,12 +39,11 @@ const fmtDotDate = (iso) => {
 }
 
 const maskedAuthor = computed(() => maskId(getAuthorId(post.value)))
-const meAid = computed(() => store.state.activityId)
+const meAid = computed(() => activityIdRef.value)
 const isOwner = computed(() => {
   const aid = getAuthorId(post.value)
   return !!aid && !!meAid.value && aid === meAid.value
 })
-const isAuthed = computed(() => store.getters.isAuthed)
 
 /* -------------------- 본문: 마크다운 + XSS -------------------- */
 const sanitizedHtml = computed(() => {
@@ -134,7 +133,7 @@ const fetchComments = async () => {
   try {
     const { data } = await client.get(`/posts/${route.params.id}/comments`)
     const raw = Array.isArray(data) ? data : []
-    const me = store.state.activityId
+    const me = activityIdRef.value
     comments.value = raw.map(c => {
       const author = c?.authorActivityId ?? null
       const html = c?.contentHtml ?? c?.html ?? null
