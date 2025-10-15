@@ -23,7 +23,7 @@ const client = axios.create({
 // ✅ 요청 인터셉터: 토큰 자동 첨부 (store 우선, 그다음 session/localStorage)
 client.interceptors.request.use((config) => {
   const token =
-    store.state.token ||
+    store.state.auth?.token ||
     sessionStorage.getItem('token') ||
     localStorage.getItem('token')
 
@@ -38,7 +38,7 @@ client.interceptors.response.use(
     const status = err?.response?.status
     if (status === 401) {
       // 인증 만료/무효 → 스토어와 저장소 정리
-      try { store.dispatch('logout') } catch {}
+      try { store.dispatch('auth/logout') } catch {}
       // 현재 페이지를 redirect로 전달
       const redirect = encodeURIComponent(location.pathname + location.search)
       window.location.assign(`/login?redirect=${redirect}`)

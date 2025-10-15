@@ -1,12 +1,12 @@
 <script setup>
 import { ref } from 'vue'
-import { useStore } from 'vuex'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
+import useAuth from '@/composables/useAuth'
 
 const router = useRouter()
 const route = useRoute()
-const store = useStore()
+const { login: loginWithAuth } = useAuth()
 
 const email = ref('')
 const password = ref('')
@@ -29,7 +29,7 @@ const doLogin = async () => {
     // ✅ 백엔드 LoginRes: { token, activityId, role }
     const role = data.role || 'USER'
 
-    await store.dispatch('login', {
+    await loginWithAuth({
       token: data.token,
       activityId: data.activityId,
       role,                // ✅ 꼭 저장
