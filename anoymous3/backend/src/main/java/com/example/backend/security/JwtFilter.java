@@ -12,13 +12,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class JwtFilter extends OncePerRequestFilter {
+    private static final String BEARER_PREFIX = "Bearer ";
     private final JwtUtil jwtUtil;
 
     public JwtFilter(JwtUtil jwtUtil) { this.jwtUtil = jwtUtil; }
@@ -27,29 +30,41 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
 
-        String header = req.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            try {
-                Claims claims = jwtUtil.parse(token).getBody();
-                String email = claims.getSubject();
-                String role = claims.get("role", String.class);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            Optional<Claims> claims = resolveToken(req).flatMap(jwtUtil::parseClaims);
 
-                // 기본 권한은 항상 USER
-                List<GrantedAuthority> auths = new ArrayList<>();
-                auths.add(new SimpleGrantedAuthority("ROLE_USER"));
-                if ("ADMIN".equalsIgnoreCase(role)) {
-                    auths.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+            if (claims.isPresent()) {
+                Claims body = claims.get();
+                String email = body.getSubject();
+                if (StringUtils.hasText(email)) {
+                    String role = body.get("role", String.class);
+
+                    List<GrantedAuthority> auths = new ArrayList<>();
+                    auths.add(new SimpleGrantedAuthority("ROLE_USER"));
+                    if ("ADMIN".equalsIgnoreCase(role)) {
+                        auths.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                    }
+
+                    Authentication auth = new UsernamePasswordAuthenticationToken(email, null, auths);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                } else {
+                    SecurityContextHolder.clearContext();
                 }
-
-                Authentication auth =
-                        new UsernamePasswordAuthenticationToken(email, null, auths);
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            } catch (Exception ignored) {
-                // 토큰 파싱 실패 시 익명 처리
+            } else {
+                SecurityContextHolder.clearContext();
             }
         }
 
         chain.doFilter(req, res);
+    }
+
+    private Optional<String> resolveToken(HttpServletRequest request) {
+        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (!StringUtils.hasText(header) || !header.startsWith(BEARER_PREFIX)) {
+            return Optional.empty();
+        }
+
+        String token = header.substring(BEARER_PREFIX.length()).trim();
+        return StringUtils.hasText(token) ? Optional.of(token) : Optional.empty();
     }
 }
