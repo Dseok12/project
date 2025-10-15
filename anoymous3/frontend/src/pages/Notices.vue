@@ -9,7 +9,7 @@
 
         <!-- 관리자만 노출되는 새 공지 버튼 (선택) -->
         <router-link
-          v-if="$store.getters.isAdmin"
+          v-if="isAdmin"
           to="/admin"
           class="btn btn-primary new-btn"
         >새 공지 등록</router-link>
@@ -96,6 +96,9 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import client from '@/api/client'
+import useAuth from '@/composables/useAuth'
+
+const { isAdmin } = useAuth()
 
 /** 마스킹: a****1 같은 형태 */
 const mask = (id) => {

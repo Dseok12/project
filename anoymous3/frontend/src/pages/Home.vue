@@ -1,14 +1,10 @@
 <script setup>
-import { computed } from 'vue'
-import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import Posts from './Posts.vue'
+import useAuth from '@/composables/useAuth'
+import PostHighlights from '@/components/posts/PostHighlights.vue'
 
-const store = useStore()
 const router = useRouter()
-
-const isAuthed = computed(() => store.getters.isAuthed)
-const activityId = computed(() => store.state.activityId)
+const { isAuthed, activityId } = useAuth()
 
 const go = (path) => router.push(path)
 
@@ -61,7 +57,7 @@ const go = (path) => router.push(path)
       </article>
     </div>
 
-    <Posts />
+    <PostHighlights class="posts" />
 
 
   </section>

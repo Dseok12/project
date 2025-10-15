@@ -99,14 +99,13 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
 import client from '@/api/client'
+import useAuth from '@/composables/useAuth'
 
-const store = useStore()
 const router = useRouter()
-
-const isAdmin = computed(() => store.getters.isAdmin === true)
+const { isAdmin: isAdminRef } = useAuth()
+const isAdmin = computed(() => isAdminRef.value === true)
 
 // 목록 상태
 const posts = ref([])
